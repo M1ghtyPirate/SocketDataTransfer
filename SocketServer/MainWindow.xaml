@@ -1,0 +1,31 @@
+﻿<Window x:Class="SocketServer.MainWindow"
+		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:local="clr-namespace:SocketServer"
+		mc:Ignorable="d"
+		Title="SocketServer" Height="450" Width="820">
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="1*"/>
+			<RowDefinition Height="1*"/>
+			<RowDefinition Height="8*"/>
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="7*"/>
+			<ColumnDefinition Width="1*"/>
+			<ColumnDefinition Width="1*"/>
+			<ColumnDefinition Width="1*"/>
+		</Grid.ColumnDefinitions>
+		<TextBox x:Name="IPAddressTextBox" Text="127.0.0.1" Grid.Row="0" Grid.Column="0" VerticalContentAlignment="Center" ToolTip="IP адрес" TextChanged="IPAddressTextBox_TextChanged"/>
+		<TextBox x:Name="PortTextBox" Text="5005" Grid.Row="0" Grid.Column="1" VerticalContentAlignment="Center" ToolTip="Порт" TextChanged="PortTextBox_TextChanged"/>
+		<Button x:Name="StartButton" Grid.Row="0" Grid.Column="2" Content="Старт" ToolTip="Старт прослушивания" Click="StartButton_Click"/>
+		<Button x:Name="StopButton" Grid.Row="0" Grid.Column="3" Content="Стоп" ToolTip="Прекращение прослушивания" Click="StopButton_Click"/>
+		<TextBox x:Name="PasswordTextBox" Text="Password1" Grid.Row="1" Grid.Column="0" VerticalContentAlignment="Center" ToolTip="Пароль для подключения клиентов" TextChanged="PasswordTextBox_TextChanged"/>
+		<Label x:Name="PasswordHashLabel" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" ToolTip="MD5 хэш пароля" BorderThickness="1px" BorderBrush="Gray" Loaded="PasswordHashLabel_Loaded"/>
+		<ScrollViewer x:Name="MessageLogScrollViewer" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" BorderThickness="1px" BorderBrush="Gray">
+			<TextBlock x:Name="MessageLogTextBlock" ToolTip="Message log" IsEnabled="False" ScrollViewer.VerticalScrollBarVisibility="Visible" TextWrapping="Wrap"/>
+		</ScrollViewer>
+	</Grid>
+</Window>
