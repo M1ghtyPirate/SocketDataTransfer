@@ -38,6 +38,11 @@ namespace SocketClient {
 		private bool isConnected { get => this.socket?.Connected ?? false; }
 
 		/// <summary>
+		/// Лок отправки
+		/// </summary>
+		private bool sendingLocked;
+
+		/// <summary>
 		/// Служебные сообщения
 		/// </summary>
 		private static class Responses {
@@ -94,7 +99,7 @@ namespace SocketClient {
 		}
 
 		private void MessageTextBox_KeyDown(object sender, KeyEventArgs e) {
-			if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) > 0) {
+			if (isConnected && !sendingLocked && e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) > 0) {
 				e.Handled = true;
 				sendMessage();
 				updateButtonsAvailiability();
@@ -106,7 +111,7 @@ namespace SocketClient {
 		#region Methods
 
 		/// <summary>
-		/// Запись сообщения в поле поле лога
+		/// Запись сообщения в поле лога
 		/// </summary>
 		/// <param name="message"></param>
 		private void logMessage(string message, string messageSource = null) {
@@ -137,7 +142,7 @@ namespace SocketClient {
 		}
 
 		/// <summary>
-		/// Обновление доступности кнаопок старта и окончания прослушивания
+		/// Обновление доступности кнопок старта и окончания прослушивания
 		/// </summary>
 		private void updateButtonsAvailiability() {
 			if (this.ConnectButton == null || this.DisconnectButton == null || this.SendButton == null) {
@@ -146,7 +151,7 @@ namespace SocketClient {
 
 			this.ConnectButton.IsEnabled = parametersFilled && !isConnected;
 			this.DisconnectButton.IsEnabled = isConnected;
-			this.SendButton.IsEnabled = isConnected && !string.IsNullOrWhiteSpace(this.MessageTextBox.Text);
+			this.SendButton.IsEnabled = isConnected && !string.IsNullOrWhiteSpace(this.MessageTextBox.Text) && !sendingLocked;
 		}
 
 		/// <summary>
@@ -192,27 +197,32 @@ namespace SocketClient {
 		/// Отправка сообщения
 		/// </summary>
 		private void sendMessage() {
-			if (this.MessageTextBox == null || !isConnected) {
+			if (this.MessageTextBox == null || !isConnected && sendingLocked) {
 				return;
 			}
 
-			this.Dispatcher.Invoke(() => logMessage($"Отправка сообщения: <{this.MessageTextBox.Text}>", this.socket?.RemoteEndPoint?.ToString()));
+			var message = this.MessageTextBox.Text.Trim();
+			this.Dispatcher.Invoke(() => logMessage($"Отправка сообщения: <{message}>", this.socket?.RemoteEndPoint?.ToString()));
 			try {
-				this.socket.Send(Encoding.UTF8.GetBytes(this.MessageTextBox.Text));
+				//this.socket.Send(Encoding.UTF8.GetBytes(message));
+				this.socket.SendAsync(Encoding.UTF8.GetBytes(message));
 			} catch (Exception ex) {
 				this.Dispatcher.Invoke(() => logMessage(ex.ToString(), this.socket?.RemoteEndPoint?.ToString()));
 				disconnect();
 				return;
 			}
 
-			// Ждем подтверждения
-			var response = getAcknowledgement();
-			if (!response) {
-				disconnect();
-				return;
-			}
+			//// Ждем подтверждения
+			//var response = getAcknowledgement();
+			//if (!response) {
+			//	disconnect();
+			//	return;
+			//}
 
 			this.MessageTextBox.Text = null;
+			// Лочим отправку до получения подтверждения в отдельном треде
+			sendingLocked = true;
+			updateButtonsAvailiability();
 		}
 
 		/// <summary>
@@ -246,12 +256,12 @@ namespace SocketClient {
 		/// </summary>
 		private void connect() {
 			if (!parametersFilled) {
-				logMessage("Не заполнены параметры.");
+				this.Dispatcher.Invoke(() => logMessage("Не заполнены параметры."));
 				return;
 			}
 
 			if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
-				logMessage($"Не удалось сформировать адрес для открытия сокета: <{this.IPAddressTextBox.Text}>:<{this.PortTextBox.Text}>");
+				this.Dispatcher.Invoke(() => logMessage($"Не удалось сформировать адрес для открытия сокета: <{this.IPAddressTextBox.Text}>:<{this.PortTextBox.Text}>"));
 				return;
 			}
 
@@ -260,15 +270,14 @@ namespace SocketClient {
 			try {
 				this.socket.Connect(ipEndpoint);
 			} catch(Exception ex) {
-				logMessage(ex + "");
+				this.Dispatcher.Invoke(() => logMessage(ex + ""));
 				return;
 			}
-			
-			logMessage($"Соединение открыто", this.socket?.RemoteEndPoint?.ToString());
+
+			this.Dispatcher.Invoke(() => logMessage($"Соединение открыто", this.socket?.RemoteEndPoint?.ToString()));
 			var buffer = new byte[256];
 			var data = new List<byte>();
 			var bytesRead = 0;
-			bool response;
 			// Отправка данных о студенте
 			this.Dispatcher.Invoke(() => logMessage($"Отправка данных о студенте: <{this.StudentInfoTextBox.Text}>", this.socket?.RemoteEndPoint?.ToString()));
 			data = Encoding.UTF8.GetBytes(this.StudentInfoTextBox.Text).ToList();
@@ -276,8 +285,7 @@ namespace SocketClient {
 			data.Clear();
 
 			// Ждем подтверждения
-			response = getAcknowledgement();
-			if (!response) {
+			if (!getAcknowledgement()) {
 				disconnect();
 				return;
 			}
@@ -289,8 +297,7 @@ namespace SocketClient {
 			data.Clear();
 
 			// Ждем подтверждения
-			response = getAcknowledgement();
-			if (!response) {
+			if (!getAcknowledgement()) {
 				disconnect();
 				return;
 			}
@@ -308,13 +315,12 @@ namespace SocketClient {
 			data.Clear();
 
 			// Ждем подтверждения
-			response = getAcknowledgement();
-			if (!response) {
+			if (!getAcknowledgement()) {
 				disconnect();
 				return;
 			}
 
-			// Ожидание сообщения о закрытии сокета в отдельном треде
+			// Ожидание сообщений о подтверждении получения или закрытии сокета в отдельном треде
 			Task.Run(() => {
 				while (isConnected) {
 					if (!checkConnection(this.socket, true)) {
@@ -326,17 +332,16 @@ namespace SocketClient {
 						continue;
 					}
 
-					do {
-						bytesRead = this.socket.Receive(buffer);
-						data.AddRange(buffer.ToList().GetRange(0, bytesRead));
-					} while (this.socket.Available > 0);
-					var message = Encoding.UTF8.GetString(data.ToArray());
-					this.Dispatcher.Invoke(() => logMessage($"Получено сообщение: <{message}> ", this.socket?.RemoteEndPoint?.ToString()));
-					data.Clear();
-					if (message == Responses.NACK) {
+					if (!getAcknowledgement()) {
 						disconnect();
 						break;
 					}
+
+					Dispatcher.Invoke(() => {
+						// Разлочим отправку
+						sendingLocked = false;
+						updateButtonsAvailiability();
+					});
 				}
 			});
 		}
@@ -353,6 +358,8 @@ namespace SocketClient {
 			this.socket = null;
 			this.Dispatcher.Invoke(() => updateTextBoxesAvailiability());
 			this.Dispatcher.Invoke(() => updateButtonsAvailiability());
+			// Разлочим отправку
+			this.Dispatcher.Invoke(() => this.sendingLocked = false);
 		}
 
 		#endregion

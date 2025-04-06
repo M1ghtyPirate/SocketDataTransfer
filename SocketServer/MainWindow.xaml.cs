@@ -99,7 +99,7 @@ namespace SocketServer {
 		#region Methods
 
 		/// <summary>
-		/// Запись сообщения в поле поле лога
+		/// Запись сообщения в поле лога
 		/// </summary>
 		/// <param name="message"></param>
 		private void logMessage(string message, string messageSource = null) {
@@ -287,12 +287,12 @@ namespace SocketServer {
 		/// </summary>
 		private void startListening() {
 			if (!parametersFilled) {
-				logMessage("Не заполнены параметры.");
+				this.Dispatcher.Invoke(() => logMessage("Не заполнены параметры."));
 				return;
 			}
 
 			if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
-				logMessage($"Не удалось сформировать адрес для открытия сокета: <{this.IPAddressTextBox.Text}>:<{this.PortTextBox.Text}>");
+				this.Dispatcher.Invoke(() => logMessage($"Не удалось сформировать адрес для открытия сокета: <{this.IPAddressTextBox.Text}>:<{this.PortTextBox.Text}>"));
 				return;
 			}
 
@@ -300,7 +300,8 @@ namespace SocketServer {
 			this.socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			this.socket.Bind(this.ipEndPoint);
 			this.socket.Listen(10);
-			logMessage($"Сокет начал прослушивание", this.socket?.LocalEndPoint?.ToString());
+			this.Dispatcher.Invoke(() => logMessage($"Сокет начал прослушивание", this.socket?.LocalEndPoint?.ToString()));
+			// Обработка подключений в отдельных тредах
 			Task.Run(() => {
 				while (isListening) {
 					var handler = this.socket.Accept();
@@ -321,7 +322,7 @@ namespace SocketServer {
 			connectionHandlers.Clear();
 			var currentSocket = this.socket;
 
-			// Разлочим сокет
+			// Разлочим сокет в состояние Accept()
 			this.socket = null;
 			var localConnection = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			localConnection.Connect(this.ipEndPoint);
