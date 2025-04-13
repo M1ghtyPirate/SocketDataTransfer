@@ -107,7 +107,7 @@ namespace SocketServer {
 				return;
 			}
 
-			var formatedMessage = $"{(string.IsNullOrWhiteSpace(this.MessageLogTextBlock.Text) ? "" : "\n")}[{DateTime.Now.ToString("dd.MM.yyyy hh:mm:ss")}] :{(messageSource == null ? "" : $" ({messageSource})")} {message ?? ""}";
+			var formatedMessage = $"{(string.IsNullOrWhiteSpace(this.MessageLogTextBlock.Text) ? "" : "\n")}[{DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")}] :{(messageSource == null ? "" : $" ({messageSource})")} {message ?? ""}";
 			this.MessageLogTextBlock.Text += formatedMessage;
 			this.MessageLogScrollViewer.ScrollToEnd();
 		}
