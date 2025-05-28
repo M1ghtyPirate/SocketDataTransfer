@@ -197,7 +197,7 @@ namespace SocketClient {
 		/// Отправка сообщения
 		/// </summary>
 		private void sendMessage() {
-			if (this.MessageTextBox == null || !isConnected && sendingLocked) {
+			if (this.MessageTextBox == null || !isConnected || sendingLocked) {
 				return;
 			}
 
@@ -260,7 +260,14 @@ namespace SocketClient {
 				return;
 			}
 
-			if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
+			IPAddress? ip = null;
+			try {
+				ip = Dns.GetHostAddresses(this.IPAddressTextBox.Text)
+				.Where(a => a.AddressFamily == AddressFamily.InterNetwork)
+				.FirstOrDefault();
+			} catch { }
+            //if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
+            if (ip == null || !int.TryParse(this.PortTextBox.Text, out var port)) {
 				this.Dispatcher.Invoke(() => logMessage($"Не удалось сформировать адрес для открытия сокета: <{this.IPAddressTextBox.Text}>:<{this.PortTextBox.Text}>"));
 				return;
 			}

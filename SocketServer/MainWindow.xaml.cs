@@ -291,15 +291,30 @@ namespace SocketServer {
 				return;
 			}
 
-			if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
+            IPAddress? ip = null;
+            try {
+                ip = Dns.GetHostAddresses(this.IPAddressTextBox.Text)
+                .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
+                .FirstOrDefault();
+            } catch { }
+            //if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
+            if (ip == null || !int.TryParse(this.PortTextBox.Text, out var port)) {
 				this.Dispatcher.Invoke(() => logMessage($"Не удалось сформировать адрес для открытия сокета: <{this.IPAddressTextBox.Text}>:<{this.PortTextBox.Text}>"));
 				return;
 			}
 
-			this.ipEndPoint = new IPEndPoint(ip, port);
-			this.socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-			this.socket.Bind(this.ipEndPoint);
-			this.socket.Listen(10);
+			try {
+                var ipEndPoint = new IPEndPoint(ip, port);
+                var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                socket.Bind(ipEndPoint);
+                this.ipEndPoint = ipEndPoint;
+                this.socket = socket;
+            } catch(Exception ex) {
+                this.Dispatcher.Invoke(() => logMessage(ex + ""));
+                return;
+            }
+
+            this.socket.Listen(10);
 			this.Dispatcher.Invoke(() => logMessage($"Сокет начал прослушивание", this.socket?.LocalEndPoint?.ToString()));
 			// Обработка подключений в отдельных тредах
 			Task.Run(() => {
