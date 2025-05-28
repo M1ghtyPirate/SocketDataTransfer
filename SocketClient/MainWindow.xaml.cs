@@ -263,8 +263,7 @@ namespace SocketClient {
 			IPAddress? ip = null;
 			try {
 				ip = Dns.GetHostAddresses(this.IPAddressTextBox.Text)
-				.Where(a => a.AddressFamily == AddressFamily.InterNetwork)
-				.FirstOrDefault();
+				.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
 			} catch { }
             //if (!IPAddress.TryParse(this.IPAddressTextBox.Text, out var ip) || !int.TryParse(this.PortTextBox.Text, out var port)) {
             if (ip == null || !int.TryParse(this.PortTextBox.Text, out var port)) {
